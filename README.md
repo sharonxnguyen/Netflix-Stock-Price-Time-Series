@@ -1,2 +1,2 @@
 # Netflix-Stock-Price-Time-Series
-A Netflix Stock Price Time Series
+A Netflix Stock Adjusted Closing Price Time Series Final Project for PSTAT 174 (Time Series). The data is from 2018-2019 and aims to forecast 2020 Adjusted Closing Price for Netflix. However, on 20 February 2020, stock markets across the world crased after the growing instability due to the COVID-19 pandemic. This forecast shows the predicted NFLX Adjusted Closing Price for 2020 if the stock market crash never happened and compares it with the actual NFLX Adjusted Closing Price for 2020 during the unexpected crash caused by the COVID-19 pandemic.
