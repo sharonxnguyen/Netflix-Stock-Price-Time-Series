@@ -147,8 +147,8 @@ hist(netflix,
 ```{r fig.height = 3, fig.width = 7}
 # Plot ACF and PACF of Original Data
 op = par(mfrow = c(1,2))
-acf(netflix, lag.max=70)
-pacf(netflix, lag.max=70)
+acf(netflix[1:length(netflix)], lag.max=70)
+pacf(netflix[1:length(netflix)], lag.max=70)
 title("Original Time Series", line=-1, outer=TRUE)
 ```
 
@@ -171,7 +171,7 @@ The data is skewed with variance non constant so we need to try a Box-Cox transf
         There are also similar spikes throughout the time series.
         However, we cannot tell for sure from this data
 
-## Box-Cox Transformation
+## Box-Cox Transformationå
 
 ```{r}
 t = 1:length(netflix)
@@ -225,8 +225,8 @@ Is your series stationary now?
 
 ```{r fig.height = 3, fig.width = 7}
 op = par(mfrow = c(1,2))
-acf(netflix.bc, lag.max = 70, main="")
-pacf(netflix.bc, lag.max = 70, main="")
+acf(netflix.bc[1:length(netflix.bc)], lag.max = 70, main="")
+pacf(netflix.bc[1:length(netflix.bc)], lag.max = 70, main="")
 title("Box-Cox Transformed Time Series", line = -1, outer=TRUE)
 ```
 
@@ -259,8 +259,8 @@ This is a good choice because differencing at lag = 1 decreased our variance fro
 
 ```{r fig.height = 3, fig.width = 7}
 op = par(mfrow = c(1,2))
-acf(netflix, lag.max = 70, main = "ACF of Original Time Series")
-acf(netflix1, lag.max = 70, main="ACF of De-trended Time Series")
+acf(netflix[1:length(netflix)], lag.max = 70, main = "ACF of Original Time Series")
+acf(netflix1[1:length(netflix1)], lag.max = 70, main="ACF of De-trended Time Series")
 ```
 
 The original data was non-stationary as shown by the ACF remaining large and periodic.
@@ -285,29 +285,69 @@ From the histogram we can see that the differenced data looks more symmetric.
 
 We then plot and analyze sample ACF and PACF to preliminary identify our model(s).
 
+Fit your model(s): Estimate the coefficients and perform diagnostic checking.
+Compare at least two models to choose the final model and explain how you decided on your \`\`best" model. Is the model obtained by using AIC(C) the same as one of the models suggested by ACF/PACF? Write the fitted model in algebraic form. Do you conclude from the analysis of residuals that your model is satisfactory?
+
+## Model Building
+
 ### ACF and PACF of de-trended time series \$\$
 
 ```{r fig.height = 3, fig.width = 7}
 op = par(mfrow = c(1,2))
-acf(netflix1, lag.max = 70, main = "De-Trended Time Series")
-pacf(netflix1, lag.max = 70, main = "De-Trended Time Series")
+acf(netflix1[1:length(netflix1)], lag.max = 70, main = "De-Trended Time Series")
 pacf(netflix1[1:length(netflix1)], lag.max = 70, main = "De-Trended Time Series")
 ```
 
-For differencing we have d = 1.
-For every, 0.05 there are 12 lags.p = 0.20 or less be nonzero lags can be caused by random noise.
-p = 47 is the max nonzero PACF lag but it could be p = 45, 36, 31, or 26, etc.
+For differencing we have d = 1 because we difference at lag = 1 to remove the trend component which made stationary data.
+The ACF plot shows no significant lags meaning that all the lags = 0 after differencing at lag = 1.
+The 95% confidence interval is a very conservative estimate so we can consider lag 8 = 0.
+This means we have moving average model of MA(0).
+The PACF plot shows a significance at lag 8 which means we have an autoregressive model of AR(8).
+We can also consider where autoregressive model of AR(0).
 
-$$
-\text{ARIMA}(47, 1, 0)
-$$
+Given this information we have a possible $\text{ARIMA}(p,d,q)$ model of $\text{ARIMA}(8,1,0)$ or $\text{ARIMA}(0,1,0)$.
+
+### Model Estimation
+
+```{r}
+# library(qpcR)
+library(MuMIn)
+# Candidate models:
+df <- expand.grid(p=0:8, q=0:1) 
+df <- cbind(df, AICc=NA)
+# Compute AICc:
+
+for (i in 1:nrow(df)) {
+  try(arima.obj <- arima(netflix, order=c(df$p[i], 1, df$q[i]), method="ML", optim.control= list(maxit = 1000)))
+
+  if (!is.null(arima.obj)) { df$AICc[i] <- AICc(arima.obj) }
+  # print(df[i, ])
+}
+
+# Complete AICc Table Sorted from Descending AICc
+df_ordered <- df[order(df$AICc),]
+df_ordered
+```
+
+After fitting different ARIMA models using maximum likelihood estimate and comparing the model fits using AICc we can choose 3 models with the smallest AICc.
+These models would be $\text{ARIMA}(0,1,0)$, $\text{ARIMA}(1,1,0)$, and $\text{ARIMA}(0,1,1)$.
+For some of the ARIMA models created using `arima()` function we get a warning of "possible convergence problem: optim gave code = 1" and this is because the normal optimization for the MLE has reached the default maximum number of iterations before convergence.
+
+```{r}
+# Final model:
+ind <- which.min(df$AICc)
+fit <- arima(netflix1, 
+             order=c(df$p[ind], 1, df$q[ind]),
+             method="ML")
+```
+
+### Model Selection
+
+Based on the ACF/PACF lags and the models with the lowest AICcs we
 
 This dataset is quite large and there are about 253 trading days in a year.
 The stock market is also not open on the weekends so there are around 5 days each week where there is data.
 There are also holidays where the stock market is closed.
-
-Fit your model(s): Estimate the coefficients and perform diagnostic checking.
-Compare at least two models to choose the final model and explain how you decided on your \`\`best" model. Is the model obtained by using AIC(C) the same as one of the models suggested by ACF/PACF? Write the fitted model in algebraic form. Do you conclude from the analysis of residuals that your model is satisfactory?
 
 Perform forecasting.
 Make sure to include confidence intervals.
@@ -327,4 +367,10 @@ Acknowledge all individuals who helped you with this project.
 
 <https://stackoverflow.com/questions/16652199/compute-monthly-averages-from-daily-data>
 
+<https://stats.stackexchange.com/questions/53051/simulate-arima-by-hand>
+
 # Appendix: Include your full code with comments.
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+
+```
