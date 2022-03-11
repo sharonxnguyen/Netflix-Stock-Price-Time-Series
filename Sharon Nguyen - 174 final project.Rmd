@@ -13,6 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(ggplot2)
 library(lubridate)
+library(MASS)
+library(forecast)
 ```
 
 # Abstract
@@ -38,10 +40,7 @@ It was downloaded from Kaggle.
 # Plots
 
 Plot and analyze the time series.
-Examine the main features of the graph, checking, in particular, whether there is 
-(i) a trend; 
-(ii) a seasonal component, 
-(iii) any apparent sharp changes in behavior.
+Examine the main features of the graph, checking, in particular, whether there is (i) a trend; (ii) a seasonal component, (iii) any apparent sharp changes in behavior.
 Explain in detail.
 
 # Netflix Stock Price Prediction Using Time Series
@@ -51,7 +50,7 @@ Explain in detail.
 ```{r}
 # Load data
 NFLX.csv <- read.csv("NFLX.csv")
-NFLX.csv <- NFLX.csv %>% select(Date, Adj.Close, Week)
+NFLX.csv <- NFLX.csv %>% dplyr::select(Date, Adj.Close, Week)
 
 # Change Date Variable to Date data type
 NFLX.csv$Date <- as.Date(NFLX.csv$Date, format= "%m/%d/%y")
@@ -59,13 +58,6 @@ NFLX.csv$Date <- as.Date(NFLX.csv$Date, format= "%m/%d/%y")
 # Check Variable data types
 sapply(NFLX.csv, class)
 ```
-```{r}
-# Check time series plot
-# ggplot(NFLX.train, aes(x=Date, y=Adj.Close)) +
-#   geom_line() +
-#   ggtitle("Netflix Stock Weekly Avg. Adjusted Closing Price (2018 - 2019)")
-```
-
 
 ```{r}
 # Remove 2020 data
@@ -78,14 +70,11 @@ NFLX2020 <- NFLX.csv[-c(1:104),]
 I removed the 2020-2022 data because of the pandemic changes.
 
 ## Plotting Raw Data
+
 ```{r}
 plot.ts(NFLX$Adj.Close,
         main = "Netflix Weekly Adj. Closing Price (2018 - 2019)",
         ylab = "Adjusted Closing Price")
-
-# ggplot(NFLX.train, aes(x=Date, y=Adj.Close)) +
-#   geom_line() +
-#   ggtitle("Netflix Stock Weekly Avg. Adjusted Closing Price (2018 - 2019)")
 
 # Added trend to data plot
 fit <- lm(NFLX$Adj.Close ~ as.numeric(1:length(NFLX$Adj.Close)))
@@ -94,59 +83,86 @@ abline(fit, col="blue")
 # Added mean (constant) to data plot
 abline(h=mean(NFLX$Adj.Close), col="green")
 
+# Add legend to plot
+legend("topright", legend=c("Trend", "Mean"),
+       col=c("blue", "green"), lty=1, cex=0.8)
+
 # Plot data with Weeks on x-axis
-adj.close <- ts(NFLX$Adj.Close, start = c(2018, 1), frequency = 52)
-ts.plot(adj.close, 
+ts.adj.close <- ts(NFLX$Adj.Close, start = c(2018, 1), frequency = 52)
+ts.plot(ts.adj.close, 
         main = "Raw Data",
         ylab= 'Adjusted Closing Price')
 ```
 
-
 # Train and Test Set Split
+
 ```{r}
 # Partition dataset to two parts for model training and model validation
 # Training Dataset
-NFLX.train <- NFLX[c(1:79),]
+NFLX.train <- NFLX[c(1:95),]
 
 # Testing Dataset 
-NFLX.test <- NFLX[-c(1:79),]
+NFLX.test <- NFLX[-c(1:95),]
+```
+
+## Netflix Weekly Adj. Closing Price (2018 - 2019) Training Set: 95 Observations
+
+```{r}
+# plot.ts(NFLX.train$Adj.Close)
+# 
+# # Added Trend and mean (constant) to data plot
+# abline(lm(NFLX.train$Adj.Close ~ as.numeric(1:length(NFLX.train$Adj.Close))), col="blue") # Trend
+# abline(h=mean(NFLX.train$Adj.Close), col="green") # Mean
+# 
+# # Check normality with Histogram
+# hist(NFLX.train$Adj.Close, 
+#      col="light blue", 
+#      xlab ="",
+#      main = "Histogram; Netflix Weekly Adjusted Closing Price Data")
+# 
+# # Plot ACF
+# acf(NFLX.train$Adj.Close, 
+#     lag.max=60, 
+#     main="ACF of Netflix Weekly Adjusted Closing Price")
 ```
 
 ```{r}
-Adj.Close.train <- ts(NFLX.train$Adj.Close, start = c(2018, 1), frequency = 52)
-Adj.Close.test <- ts(NFLX.test$Adj.Close, start = c(2019, 7), frequency = 52)
+netflix <- ts(NFLX.train[,2], start = c(2018, 1), frequency = 52)
+netflix.test <- ts(NFLX.train[,2], start = c(2019, 10), frequency = 52)
 
-ts.plot(Adj.Close.train, 
+# Plot
+ts.plot(netflix, 
         main = "Training Data",
         ylab = "Adjusted Closing Price")
-
-# Added Trend amd mean (constant) to data plot
-fit <- lm(Adj.Close.train ~ as.numeric(1:length(Adj.Close.train)))
-abline(fit, col="blue") # Trend
-abline(h=mean(Adj.Close.train), col="green") # Mean
 ```
+
 ```{r}
 # Check normality with Histogram
-hist(NFLX.train[,2], 
+hist(netflix, 
      col="light blue", 
      xlab ="",
      main = "Histogram; Netflix Weekly Adjusted Closing Price Data")
 ```
 
-The histogram is left-skewed.
-
-```{r}
-# Plot ACF
-acf(NFLX.train[,2], 
-    lag.max=40, 
-    main="ACF of Netflix Weekly Adjusted Closing Price")
+```{r fig.height = 3, fig.width = 7}
+# Plot ACF and PACF of Original Data
+op = par(mfrow = c(1,2))
+acf(netflix, lag.max=70)
+pacf(netflix, lag.max=70)
+title("Original Time Series", line=-1, outer=TRUE)
 ```
 
+The histogram is not normally distributed and it is left-skewed.
+
 The ACF remains large and periodic.
+It does not decrease to zero quickly which implies non-stationary data.
+We may need to difference the data to get stationarity.
+To stabilize the variance and try to make it normal, we can transform the data using Box-Cox transformation.
+To remove the seasonality and negative trend we can difference.
+We can check if first lag differencing makes the data more stationary and decreases its variance.
+If we continue differencing and the variance increases than we have overdifferenced and should go back to the previous differenced data.
 
-To stabilize the variance we need to transform and to remove seasonality and trend we need to difference.
-
-The data is skewed with variance non constant so we need to try a Box-Cox transformation. 
+The data is skewed with variance non constant so we need to try a Box-Cox transformation.
 
     -   There is a mostly linear trend in data although there is a very sharp change in behavior near the year 2022.
         There are also some sharp changes nearing the year 2019 and right after the year 2020.
@@ -155,30 +171,50 @@ The data is skewed with variance non constant so we need to try a Box-Cox transf
         There are also similar spikes throughout the time series.
         However, we cannot tell for sure from this data
 
+## Box-Cox Transformation
+
 ```{r}
-library(MASS)
-library(tsdl)
-library(forecast)
 t = 1:length(netflix)
 fit = lm(netflix ~ t)
-bcTransform = boxcox(netflix ~ t,plotit = TRUE)
+bcTransform = boxcox(netflix ~ t, plotit = TRUE)
 
 lambda = bcTransform$x[which(bcTransform$y == max(bcTransform$y))]
 netflix.bc = (1/lambda) * (netflix^lambda - 1)
 
-# log transform
-netflix.log = log(netflix)
-
-# square root transform
-netflix.sqrt = sqrt(netflix)
+# Power 2 Transform
+netflix.squared = netflix^2
 
 # Compare transforms
 op= par(mfrow=c(2,2))
-ts.plot(netflix, main = "Original Times Series") 
-ts.plot(netflix.bc, main = "Box-Cox Transform") 
-ts.plot(netflix.log, main = "Log Transform") 
-ts.plot(netflix.sqrt, main = "Square Root Transform")
+ts.plot(netflix, main = "Original Times Series", ylab = expression(X[t])) 
+ts.plot(netflix.bc, main = "Box-Cox Transform", ylab = expression(Y[t])) 
+hist(netflix, 
+     col="light blue", 
+     main = "Histogram of Netflix")
+hist(netflix.bc, 
+     col="light blue", 
+     main = "Histogram of Netflix Box-Cox")
+
+ts.plot(netflix.squared, main = "Squared Transform")
+hist(netflix.squared, 
+     col="light blue", 
+     main = "Histogram of Netflix Squared Transform")
 ```
+
+```{r}
+# Variance
+var(netflix)
+var(netflix.bc)
+var(netflix.squared)
+```
+
+The Box-Cox Transformation gives us that $\lambda = 2$.
+This means that the best transformation for this data is the Box-Cox Power 2 Transformation.
+We transformed the data by squaring the data.
+We are going to choose our original data because the transformations did not change the time series plots that much.
+The variance also increases from $\text{Var} = 1911.074$ to $\text{Var} = 191575737$ for the Box-Cox transformation and $\text{Var} = 1911.074$ to $\text{Var} = 766302948$ for the Power 2 transformation.
+We want the variance to decrease not increase when transforming data.
+Thus, we choose the original data.
 
 Use any necessary transformations to get a stationary series.
 Give a detailed explanation to justify your choice of a particular procedure.
@@ -187,63 +223,78 @@ If you have used differencing, what lag did you use?
 Why?
 Is your series stationary now?
 
-## Differencing
+```{r fig.height = 3, fig.width = 7}
+op = par(mfrow = c(1,2))
+acf(netflix.bc, lag.max = 70, main="")
+pacf(netflix.bc, lag.max = 70, main="")
+title("Box-Cox Transformed Time Series", line = -1, outer=TRUE)
+```
 
-```{r}
+There is cyclical behavior in the ACF of the transformed data.
+There are significant correlations with values moving proportionally every 52 lags because we know that this is Weekly Netflix Stock Adjusted Closing Prices for 2018-2019.
+Therefore, we can say that the period of the seasonal component is given by d = 52.
+
+## Difference at lag = 1
+
+```{r fig.height = 3, fig.width = 7}
+op = par(mfrow = c(1,2))
+# Original Data
+plot.ts(netflix,
+        main = "Original Time Series- Training Data")
 # Difference at lag = 1 to remove trend component
-netflix2 <- diff(netflix,1)
-plot.ts(netflix2,
-        main = "De-trended Time Series")
+netflix1 <- diff(netflix,1)
+plot.ts(netflix1, main = "De-trended Time Series", ylab = expression(nabla~X[t]))
 abline(h = 0, lty = 2, col = "blue")
 ```
 
-    Differencing at lag = 1 to remove trend
-
-```{r echo = FALSE, results="hide"}
-# # Difference at lag = 1 to remove trend component
-# coffee2 <- diff(coffee,1)
-# plot.ts(coffee2,
-#         main = "De-trended Time Series")
-# abline(h = 0, lty = 2, col = "blue")
-```
-
 ```{r}
-# Difference at lag = 253 to remove seasonal component
-netflix3 <- diff(netflix2, 253)
-plot.ts(netflix3,
-        main = "De-trended/seaonalized Time Series")
-abline(h = 0, lty = 2, col = "blue")
+# Check Variance
+var(netflix)
+var(netflix1)
 ```
 
-    Differencing at lag = 1 to remove trend but also differencing at lag = 253 to remove seasonality.
+We know that Netflix stock prices have a trend.
+After we difference at lag = 1 to remove the trend, we can see that the data is more stationary compared to the original data plot.
+This is a good choice because differencing at lag = 1 decreased our variance from $\text{Var} = 1911.074$ to $\text{Var} = 343.6827$.
 
-```{r echo=FALSE, results= "hide"}
-# 
-# # Difference at lag = 12 to remove seasonal component
-# coffee3 <- diff(coffee2, 12)
-# plot.ts(coffee3,
-#         main = "De-trended/seaonalized Time Series")
-# abline(h = 0, lty = 2, col = "blue")
+```{r fig.height = 3, fig.width = 7}
+op = par(mfrow = c(1,2))
+acf(netflix, lag.max = 70, main = "ACF of Original Time Series")
+acf(netflix1, lag.max = 70, main="ACF of De-trended Time Series")
 ```
 
-Plot and analyze sample ACF and PACF to preliminary identify your model(s).
-Explain your choices of suitable p and q here.
+The original data was non-stationary as shown by the ACF remaining large and periodic.
+It does not decrease to zero quickly which implies non-stationary data.
+After differencing at lag = 1 to remove the trend component it drops to zero quickly now which means the data is stationary.
+There seems to be no significant lags meaning that all the lags = 0 after differencing at lag = 1.
 
-```{r}
-acf(netflix, lag.max = 60 )
-pacf(netflix, lag.max = 60 )
-
-acf(netflix2, lag.max = 60, main = "De-Trended Time Series")
-pacf(netflix2, lag.max = 60, main = "De-Trended Time Series")
-
-acf(netflix3, lag.max = 60, main = "De-Trended/Seasonalized Time Series")
-pacf(netflix3, lag.max = 60, main = "De-Trended/Seasonalized Time Series")
-
-acf(netflix.bc, lag.max = 60, main = "Box-Cox Transformed Time Series")
-pacf(netflix.bc, lag.max = 60, main = "Box-Cox Transformed Time Series")
+```{r fig.height = 3, fig.width = 7}
+op = par(mfrow = c(1,2))
+hist(netflix, 
+     col="light blue", 
+     xlab ="",
+     main="Histogram of (Adj. Close Price)")
+hist(netflix1, 
+     col="light blue", 
+     xlab ="",
+     main="Histogram of Differenced (Adj. Close Price)")
 ```
 
-For differencing we have d = 1 and D = 1.
+The histogram of differenced adjusted close price looks more normally distributed in comparison to the histogram of the original adjusted close price data.
+From the histogram we can see that the differenced data looks more symmetric.
+
+We then plot and analyze sample ACF and PACF to preliminary identify our model(s).
+
+### ACF and PACF of de-trended time series \$\$
+
+```{r fig.height = 3, fig.width = 7}
+op = par(mfrow = c(1,2))
+acf(netflix1, lag.max = 70, main = "De-Trended Time Series")
+pacf(netflix1, lag.max = 70, main = "De-Trended Time Series")
+pacf(netflix1[1:length(netflix1)], lag.max = 70, main = "De-Trended Time Series")
+```
+
+For differencing we have d = 1.
 For every, 0.05 there are 12 lags.p = 0.20 or less be nonzero lags can be caused by random noise.
 p = 47 is the max nonzero PACF lag but it could be p = 45, 36, 31, or 26, etc.
 
@@ -254,40 +305,6 @@ $$
 This dataset is quite large and there are about 253 trading days in a year.
 The stock market is also not open on the weekends so there are around 5 days each week where there is data.
 There are also holidays where the stock market is closed.
-
-```{r echo=FALSE, results= "hide"}
-# n <- filter(netflix.csv, netflix.csv$V1 < as.Date("2018-01-02"))# acf(coffee)
-# pacf(coffee)
-#
-# acf(coffee2)
-# pacf(coffee2)
-#
-# acf(coffee3)
-# pacf(coffee3)
-
-
-# library(MASS)
-# t = 1:length(netflix)
-# fit = lm(netflix ~ t)
-# bcTransform = boxcox(netflix ~ t,plotit = TRUE)
-#
-# lambda = bcTransform$x[which(bcTransform$y == max(bcTransform$y))]
-# netflix.bc = (1/lambda) * (netflix^lambda - 1)
-#
-# op <- par(mfrow = c(1,2))
-# ts.plot(netflix,main = "Original data",ylab = expression(X[t]))
-# ts.plot(netflix.bc,main = "Box-Cox tranformed data")
-
-
-# iowa.log = log(iowa.ts)
-# iowa.sqrt = sqrt(iowa.ts)
-#
-# op= par(mfrow=c(2,2))
-# ts.plot(iowa.ts, main = "Original Time Series")
-# ts.plot(iowa.bc, main = "Box-Cox Transform")
-# ts.plot(iowa.log, main = "Log Transform")
-# ts.plot(iowa.sqrt, main = "Square Root Transform")
-```
 
 Fit your model(s): Estimate the coefficients and perform diagnostic checking.
 Compare at least two models to choose the final model and explain how you decided on your \`\`best" model. Is the model obtained by using AIC(C) the same as one of the models suggested by ACF/PACF? Write the fitted model in algebraic form. Do you conclude from the analysis of residuals that your model is satisfactory?
@@ -305,10 +322,9 @@ Record the math formula for the model you chose.
 Acknowledge all individuals who helped you with this project.
 
 # References
-https://www.kaggle.com/jainilcoder/netflix-stock-price-prediction
 
-https://stackoverflow.com/questions/16652199/compute-monthly-averages-from-daily-data
+<https://www.kaggle.com/jainilcoder/netflix-stock-price-prediction>
 
-https://stackoverflow.com/questions/16652199/compute-monthly-averages-from-daily-data
+<https://stackoverflow.com/questions/16652199/compute-monthly-averages-from-daily-data>
 
 # Appendix: Include your full code with comments.
