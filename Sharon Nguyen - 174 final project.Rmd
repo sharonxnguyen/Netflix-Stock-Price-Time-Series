@@ -330,16 +330,8 @@ df_ordered
 ```
 
 After fitting different ARIMA models using maximum likelihood estimate and comparing the model fits using AICc we can choose 3 models with the smallest AICc.
-These models would be $\text{ARIMA}(0,1,0)$, $\text{ARIMA}(1,1,0)$, and $\text{ARIMA}(0,1,1)$.
-For some of the ARIMA models created using `arima()` function we get a warning of "possible convergence problem: optim gave code = 1" and this is because the normal optimization for the MLE has reached the default maximum number of iterations before convergence.
-
-```{r}
-# Final model:
-ind <- which.min(df$AICc)
-fit <- arima(netflix1, 
-             order=c(df$p[ind], 1, df$q[ind]),
-             method="ML")
-```
+These models would be $\text{ARIMA}(0,1,0)$, $\text{AR}(1)$, $\text{ARIMA}(8,1,0)$.
+We don't consider p and q for the ARIMA model where the coefficients are within the 95% confidence interval in the ACF/PACF plots.
 
 ### Model Selection
 
@@ -349,10 +341,161 @@ This dataset is quite large and there are about 253 trading days in a year.
 The stock market is also not open on the weekends so there are around 5 days each week where there is data.
 There are also holidays where the stock market is closed.
 
+### Model Diagnostics
+
+#### Stationary/Invertible Checks
+
+Model $\text{ARIMA}(0,1,0)$ is random walk , $\text{AR}(1)$, $\text{ARIMA}(8,1,0)$.
+
+```{r}
+fit
+abs(polyroot(c(1,fit2$coef)))>1
+source("plot.roots.R")
+plot.roots(NULL,polyroot(c(1,fit2$coef)), main="ma roots Model A")
+fit3
+abs(polyroot(c(1,fit3$coef)))>1
+source("plot.roots.R")
+plot.roots(NULL,polyroot(c(1,fit3$coef)), main="ma roots Model B")
+```
+
+We make the assumption that $Z_t$ is a white noise $Z_t \sim \text{WN}(0,\sigma^2)$.
+
+#### [Model 1]{.ul}: $\text{ARIMA}(0,1,0)$
+
+$1^{\text{st}}$ Lowest AIC: 816.8718
+
+```{r fig.height = 4, fig.width = 5}
+fit <- arima(netflix[1:length(netflix)], order=c(0,1,0), method="ML")
+fit
+
+# Test for independence of residuals
+Box.test(residuals(fit), type="Ljung")
+
+# Test for normality of resdiuals
+shapiro.test(residuals(fit))
+
+ts.plot(residuals(fit), main="Fitted Resdiuals")
+
+par(mfrow=c(2,2)) 
+
+# Plot diagnostics of residuals op <- par(mfrow=c(2,2))
+# acf
+acf(residuals(fit), main = "Autocorrelation")
+
+# pacf
+pacf(residuals(fit), main = "Partial Autocorrelation") 
+
+# Histogram
+hist(residuals(fit) ,main = "Histogram", col="light blue") 
+
+# q-q plot
+qqnorm(residuals(fit))
+qqline(residuals(fit),col ="blue")
+
+# Add overall title
+title("Fitted Residuals Diagnostics", outer=TRUE)
+```
+
+If the series is not stationary, the simplest model for it is a random walk model.
+This can be considered a limiting case of an AR(1) model.
+The autoregressive coefficient is equal to 1.
+
+Random Walk: $X_t=Z_1+\dots+Z_t$
+
+#### [Model 2]{.ul}: $\text{AR}(1)$
+
+AIC: 828.87
+
+```{r fig.height = 4, fig.width = 5}
+fit <- arima(netflix[1:length(netflix)], order=c(1,0,0), method="ML")
+fit
+
+# Test for independence of residuals
+Box.test(residuals(fit), type="Ljung")
+
+# Test for normality of resdiuals
+shapiro.test(residuals(fit))
+
+ts.plot(residuals(fit), main="Fitted Resdiuals")
+
+par(mfrow=c(2,2)) 
+
+# Plot diagnostics of residuals op <- par(mfrow=c(2,2))
+# acf
+acf(residuals(fit), main = "Autocorrelation")
+
+# pacf
+pacf(residuals(fit), main = "Partial Autocorrelation") 
+
+# Histogram
+hist(residuals(fit) ,main = "Histogram", col="light blue") 
+
+# q-q plot
+qqnorm(residuals(fit))
+qqline(residuals(fit),col ="blue")
+
+# Add overall title
+title("Fitted Residuals Diagnostics", outer=TRUE)
+```
+
+Formula: $X_t= X_{t-1}+Z_t$
+
+#### [Model 3]{.ul}: $\text{ARIMA}(8,1,0)$
+
+$2^{\text{nd}}$ Lowest AIC: 825.9517
+
+```{r fig.height = 4, fig.width = 5}
+fit <- arima(netflix[1:length(netflix)], order=c(8,1,0), method="ML")
+fit
+
+# Test for independence of residuals
+Box.test(residuals(fit), type="Ljung")
+
+# Test for normality of resdiuals
+shapiro.test(residuals(fit))
+
+ts.plot(residuals(fit), main="Fitted Resdiuals")
+
+par(mfrow=c(2,2)) 
+
+# Plot diagnostics of residuals op <- par(mfrow=c(2,2))
+# acf
+acf(residuals(fit), main = "Autocorrelation")
+
+# pacf
+pacf(residuals(fit), main = "Partial Autocorrelation") 
+
+# Histogram
+hist(residuals(fit) ,main = "Histogram", col="light blue") 
+
+# q-q plot
+qqnorm(residuals(fit))
+qqline(residuals(fit),col ="blue")
+
+# Add overall title
+title("Fitted Residuals Diagnostics", outer=TRUE)
+```
+
+Formula: $\nabla X_t = -0.0517X_{t-1} - 0.0055X_{t-2} + 0.1362X_{t-3} - 0.0910X_{t-4} + 0.1279X_{t-5}  0.0075X_{t-6} + 0.0091X_{t-7} - 0.2519X_{t-8} + Z_t$
+
+From the diagnostics we test the assumption $Z_t$ is white noise.
+We see that the statement is true for the model $\text{ARIMA}(8,1,0)$ only.
+
+```{r}
+# Final model:
+fit <- arima(netflix, 
+             order=c(8, 1, 0),
+             method="ML") 
+```
+
 Perform forecasting.
 Make sure to include confidence intervals.
 Make sure to return to original data.
 Plot the original series and the forecasts.
+
+```{r}
+
+```
 
 # Conclusion
 
