@@ -171,7 +171,7 @@ The data is skewed with variance non constant so we need to try a Box-Cox transf
         There are also similar spikes throughout the time series.
         However, we cannot tell for sure from this data
 
-## Box-Cox Transformationå
+## Box-Cox Transformation
 
 ```{r}
 t = 1:length(netflix)
@@ -201,20 +201,10 @@ hist(netflix.squared,
      main = "Histogram of Netflix Squared Transform")
 ```
 
-```{r}
-# Variance
-var(netflix)
-var(netflix.bc)
-var(netflix.squared)
-```
-
 The Box-Cox Transformation gives us that $\lambda = 2$.
 This means that the best transformation for this data is the Box-Cox Power 2 Transformation.
 We transformed the data by squaring the data.
 We are going to choose our original data because the transformations did not change the time series plots that much.
-The variance also increases from $\text{Var} = 1911.074$ to $\text{Var} = 191575737$ for the Box-Cox transformation and $\text{Var} = 1911.074$ to $\text{Var} = 766302948$ for the Power 2 transformation.
-We want the variance to decrease not increase when transforming data.
-Thus, we choose the original data.
 
 Use any necessary transformations to get a stationary series.
 Give a detailed explanation to justify your choice of a particular procedure.
@@ -242,8 +232,18 @@ op = par(mfrow = c(1,2))
 plot.ts(netflix,
         main = "Original Time Series- Training Data")
 # Difference at lag = 1 to remove trend component
-netflix1 <- diff(netflix,1)
+netflix1 <- diff(netflix, 1)
 plot.ts(netflix1, main = "De-trended Time Series", ylab = expression(nabla~X[t]))
+abline(h = 0, lty = 2, col = "blue")
+
+# Difference at lag = 1 one more time
+netflix2 <- diff(netflix1, 1)
+plot.ts(netflix2, main = "De-trended Time Series Again", ylab = expression(nabla~X[t]))
+abline(h = 0, lty = 2, col = "blue")
+
+# Difference at lag = 21 to remove seasonal component
+netflix21 <- diff(netflix1, 21)
+plot.ts(netflix21, main = "De-trended/seasonalized Time Series", ylab = expression(nabla~X[t]))
 abline(h = 0, lty = 2, col = "blue")
 ```
 
@@ -251,6 +251,7 @@ abline(h = 0, lty = 2, col = "blue")
 # Check Variance
 var(netflix)
 var(netflix1)
+var(netflix2)
 ```
 
 We know that Netflix stock prices have a trend.
@@ -305,7 +306,7 @@ This means we have moving average model of MA(0).
 The PACF plot shows a significance at lag 8 which means we have an autoregressive model of AR(8).
 We can also consider where autoregressive model of AR(0).
 
-Given this information we have a possible $\text{ARIMA}(p,d,q)$ model of $\text{ARIMA}(8,1,0)$ or $\text{ARIMA}(0,1,0)$.
+Given this information we have a possible $\text{ARIMA}(p,d,q)$ model of $\text{ARIMA}(8,1,0)$,$\text{ARIMA}(0,1,0)$, or $\text{AR}(1)$.
 
 ### Model Estimation
 
@@ -318,7 +319,8 @@ df <- cbind(df, AICc=NA)
 # Compute AICc:
 
 for (i in 1:nrow(df)) {
-  try(arima.obj <- arima(netflix, order=c(df$p[i], 1, df$q[i]), method="ML", optim.control= list(maxit = 1000)))
+  try(arima.obj <- arima(netflix, order=c(df$p[i], 1, df$q[i]), method="ML", 
+                         optim.control= list(maxit = 1000)))
 
   if (!is.null(arima.obj)) { df$AICc[i] <- AICc(arima.obj) }
   # print(df[i, ])
@@ -345,18 +347,40 @@ There are also holidays where the stock market is closed.
 
 #### Stationary/Invertible Checks
 
-Model $\text{ARIMA}(0,1,0)$ is random walk , $\text{AR}(1)$, $\text{ARIMA}(8,1,0)$.
+Model $\text{ARIMA}(0,1,0)$ is random walk , $\text{AR}(1)$, $\text{ARIMA}(8,1,0)$, $\text{SAR}(1)_8$.
 
 ```{r}
+# ARIMA(0,1,0)
+fit <- arima(netflix[1:length(netflix)], order=c(0,1,0), method="ML")
 fit
-abs(polyroot(c(1,fit2$coef)))>1
-source("plot.roots.R")
-plot.roots(NULL,polyroot(c(1,fit2$coef)), main="ma roots Model A")
+abs(polyroot(c(1,fit$coef))) > 1
+
+# AR(1)
+fit2 <- arima(netflix[1:length(netflix)], order=c(1,0,0), method="ML")
+fit2
+abs(polyroot(c(1,fit2$coef))) > 1
+
+# ARIMA(8,1,0)
+fit3 <- arima(netflix[1:length(netflix)], order=c(8,1,0), method="ML")
 fit3
-abs(polyroot(c(1,fit3$coef)))>1
-source("plot.roots.R")
-plot.roots(NULL,polyroot(c(1,fit3$coef)), main="ma roots Model B")
+abs(polyroot(c(1, fit3$coef))) > 1
+
+fit4 <- arima(netflix[1:length(netflix)], order=c(8,1,0), fixed=c(0,0,0,0,0,0,0,NA), method="ML")
+fit4
+abs(polyroot(c(1, fit4$coef))) > 1
+
+# SAR(1)_8
+fit5 <- arima(netflix[1:length(netflix)], order=c(1,0,0), method="ML")
+fit5
+abs(polyroot(c(1, fit5$coef))) > 1
 ```
+
+Random Walk, $\text{ARIMA}(0,1,0)$, is nonstationary.
+$\text{AR}(1)$ models are always invertible.
+This is a nonstationary $\text{AR}(1)$ process with parameter $|\phi| > 1$.
+$\text{ARIMA}(8,1,0)$ is $\text{AR}(p)$ is always invertible by its construction $Z_t = \phi (B)X_t$.
+$\text{AR}(p)$ has $\text{MA}(\infty)$ representation when the roots of the polynomial $\phi(z)$ lie outside of the unit circle ($z^*$ is a root of $\phi(z)$ if $\phi(z^*) = 0$.
+Condition: $|z^*| > 1$ ) which is true for our $\text{AR}(8)$.
 
 We make the assumption that $Z_t$ is a white noise $Z_t \sim \text{WN}(0,\sigma^2)$.
 
@@ -364,10 +388,7 @@ We make the assumption that $Z_t$ is a white noise $Z_t \sim \text{WN}(0,\sigma^
 
 $1^{\text{st}}$ Lowest AIC: 816.8718
 
-```{r fig.height = 4, fig.width = 5}
-fit <- arima(netflix[1:length(netflix)], order=c(0,1,0), method="ML")
-fit
-
+```{r fig.height = 5, fig.width = 6}
 # Test for independence of residuals
 Box.test(residuals(fit), type="Ljung")
 
@@ -393,7 +414,7 @@ qqnorm(residuals(fit))
 qqline(residuals(fit),col ="blue")
 
 # Add overall title
-title("Fitted Residuals Diagnostics", outer=TRUE)
+# title("Fitted Residuals Diagnostics", outer=TRUE)
 ```
 
 If the series is not stationary, the simplest model for it is a random walk model.
@@ -406,36 +427,33 @@ Random Walk: $X_t=Z_1+\dots+Z_t$
 
 AIC: 828.87
 
-```{r fig.height = 4, fig.width = 5}
-fit <- arima(netflix[1:length(netflix)], order=c(1,0,0), method="ML")
-fit
-
+```{r fig.height = 5, fig.width = 6}
 # Test for independence of residuals
-Box.test(residuals(fit), type="Ljung")
+Box.test(residuals(fit2), type="Ljung")
 
 # Test for normality of resdiuals
-shapiro.test(residuals(fit))
+shapiro.test(residuals(fit2))
 
-ts.plot(residuals(fit), main="Fitted Resdiuals")
+ts.plot(residuals(fit2), main="Fitted Resdiuals")
 
 par(mfrow=c(2,2)) 
 
 # Plot diagnostics of residuals op <- par(mfrow=c(2,2))
 # acf
-acf(residuals(fit), main = "Autocorrelation")
+acf(residuals(fit2), main = "Autocorrelation")
 
 # pacf
-pacf(residuals(fit), main = "Partial Autocorrelation") 
+pacf(residuals(fit2), main = "Partial Autocorrelation") 
 
 # Histogram
-hist(residuals(fit) ,main = "Histogram", col="light blue") 
+hist(residuals(fit2) ,main = "Histogram", col="light blue") 
 
 # q-q plot
-qqnorm(residuals(fit))
-qqline(residuals(fit),col ="blue")
+qqnorm(residuals(fit2))
+qqline(residuals(fit2),col ="blue")
 
 # Add overall title
-title("Fitted Residuals Diagnostics", outer=TRUE)
+# title("Fitted Residuals Diagnostics", outer=TRUE)
 ```
 
 Formula: $X_t= X_{t-1}+Z_t$
@@ -444,39 +462,36 @@ Formula: $X_t= X_{t-1}+Z_t$
 
 $2^{\text{nd}}$ Lowest AIC: 825.9517
 
-```{r fig.height = 4, fig.width = 5}
-fit <- arima(netflix[1:length(netflix)], order=c(8,1,0), method="ML")
-fit
-
+```{r fig.height = 5, fig.width = 6}
 # Test for independence of residuals
-Box.test(residuals(fit), type="Ljung")
+Box.test(residuals(fit3), type="Ljung")
 
 # Test for normality of resdiuals
-shapiro.test(residuals(fit))
+shapiro.test(residuals(fit3))
 
-ts.plot(residuals(fit), main="Fitted Resdiuals")
+ts.plot(residuals(fit3), main="Fitted Resdiuals")
 
 par(mfrow=c(2,2)) 
 
 # Plot diagnostics of residuals op <- par(mfrow=c(2,2))
 # acf
-acf(residuals(fit), main = "Autocorrelation")
+acf(residuals(fit3), main = "Autocorrelation")
 
 # pacf
-pacf(residuals(fit), main = "Partial Autocorrelation") 
+pacf(residuals(fit3), main = "Partial Autocorrelation") 
 
 # Histogram
-hist(residuals(fit) ,main = "Histogram", col="light blue") 
+hist(residuals(fit3) ,main = "Histogram", col="light blue") 
 
 # q-q plot
-qqnorm(residuals(fit))
-qqline(residuals(fit),col ="blue")
+qqnorm(residuals(fit3))
+qqline(residuals(fit3),col ="blue")
 
 # Add overall title
-title("Fitted Residuals Diagnostics", outer=TRUE)
+# title("Fitted Residuals Diagnostics", outer=TRUE)
 ```
 
-Formula: $\nabla X_t = -0.0517X_{t-1} - 0.0055X_{t-2} + 0.1362X_{t-3} - 0.0910X_{t-4} + 0.1279X_{t-5}  0.0075X_{t-6} + 0.0091X_{t-7} - 0.2519X_{t-8} + Z_t$
+Formula: $\nabla X_t = -0.0517X_{t-1} - 0.0055X_{t-2} + 0.1362X_{t-3} - 0.0910X_{t-4} + 0.1279X_{t-5} 0.0075X_{t-6} + 0.0091X_{t-7} - 0.2519X_{t-8} + Z_t$
 
 From the diagnostics we test the assumption $Z_t$ is white noise.
 We see that the statement is true for the model $\text{ARIMA}(8,1,0)$ only.
