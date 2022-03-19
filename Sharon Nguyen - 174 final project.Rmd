@@ -7,8 +7,9 @@ editor_options:
     wrap: sentence
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, include=FALSE, fig.align='center'}
+knitr::opts_chunk$set(echo = FALSE, 
+                      results = 'hide')
 library(dplyr)
 library(ggplot2)
 library(lubridate)
@@ -20,34 +21,47 @@ library(MuMIn)
 
 # Abstract
 
-1-2 short paragraphs summarizing briefly the questions you addressed, your time series techniques, key results, and conclusions.
-It should not include formulas.
-
-
+If the COVID-19 pandemic never happened what would the Netflix stock price in 2020 look like?
+The unforeseen pandemic led to an enexpected stock market crash.
+To discover the predicted 2020 growth and actual 2020 stock price of NFLX, I used 2018-2019 weekly NFLX stock adjusted closing prices to predict 2020's outcome.
+The time series is fitted with an ARIMA model (autoregressive integrated moving average model) and the last 9 weeks of 2019 was used as a test set.
+The model predicted the 9 weeks within the 95% confidence interval.
+It was also used to predict the next 52 weeks of 2020.
+The predictions are all within the 95% confidence interval.
+However, due to the randomness and unpredictability of the stock market the model is only sufficient for short term use.
 
 # Introduction
 
-Restate your problem, including details.
-Describe the data set and explain why this data set is interesting or important.
-Provide a clear description of the problem you plan to address using this dataset (for example to forecast) and include techniques you use.
-Describe results (positive and negative) and briefly state your conclusions.
-Please acknowledge the source of your data and software used.
+Netflix is one of the four prominent American technology companies.
+By creating a time series model that can predict the future of Netflix, we can explore the growth or decline of Netflix.
+This can have a massive effect on not only the stock market but also on society.
+Currently, there are 192.95 million paid Netflix subscribers as of the second quarter of 2020 ( Statista).
+When investors, traders, and analyst are deciding what stocks are a good investment we can consider the predicted stock prices as part of our decision.
 
-Netflix is one of the four prominent American technology companies. By creating a time series model that can predict the future of Netflix, we can explore the growth or decline of Netflix. This can have a massive effect on not only the stock market but also on society. Currently, there are 192.95 million paid Netflix subscribers as of the second quarter of 2020 ( Statista). When investors, traders, and analyst are deciding what stocks are a good investment we can consider the predicted stock prices as part of our decision. 
+This data set contains Weekly Netflix Stock Adjusted Closing Prices from 2018-2020 and aims to forecast 2020 Adjusted Closing Price for Netflix.
+On 20 February 2020, stock markets across the world crashed after the growing instability due to the COVID-19 pandemic.
+This forecast shows the predicted Weekly NFLX Adjusted Closing Price for 2020 if the stock market crash never happened and compares it with the actual Weekly NFLX Adjusted Closing Price for 2020 during the unexpected crash.
+This expresses the unknown variables that can affect a time series like stocks.
+I first made a data split between training set and test set.
+This allows me to use 2018 and part of 2019 data to create models on the training data and then testing its accuracy on the test data.
+I analyzed autocorrelation and partial autocorrelation plots in RStudio to find the best moving average or autoregressive orders.
+Also, I used Box-Cox transformations to explore the effect it has on normality of the data.
+I then tested differencing to out rule trends and seasonality of the data.
+Furthermore, there was model diagnostics for checking and evaluating the models using Akaike's Information Criteria, numerous tests for normality, and tests for stationarity.
+The final model predicted the last 9 weeks of 2019 NFLX Stock Adjusted Closing Prices and were within the 95% confidence interval.
+The 2020 predicted data was also within a 95% confidence interval, however, the interval was very large and was not able to predict stock growth over the weeks.
+The interval is quite large due to the nature of stocks and how weekly data can also be a bit noisy.
+Stocks are daily data and averaging it to weekly data can just remove some noise.
+This also does not account for the volatility of the stock market.
 
-This data set contains Weekly Netflix Stock Adjusted Closing Prices from 2018-2020 and aims to forecast 2020 Adjusted Closing Price for Netflix. On 20 February 2020, stock markets across the world crashed after the growing instability due to the COVID-19 pandemic. This forecast shows the predicted Weekly NFLX Adjusted Closing Price for 2020 if the stock market crash never happened and compares it with the actual Weekly NFLX Adjusted Closing Price for 2020 during the unexpected crash. I first made a data split between training set and test set. This allows me to use 2018 and part of 2019 data to create models on the training data and then testing its accuracy on the test data. I analyzed autocorrelation and partial autocorrelation plots in RStudio to find the best moving average or autoregressive orders. Also, I used Box-Cox transformations to explore the effect it has on normality of the data. I then tested differencing to out rule trends and seasonality of the data. Furthermore, there was model diagnostics for checking and evaluating the models using Akaike's Information Criteria, numerous tests for normality, and tests for stationarity. The final model predicted the last 9 weeks of 2019 NFLX Stock Adjusted Closing Prices and were within the 95% confidence interval. The interval is quite large due to the nature of stocks and how weekly data can also be a bit noisy. Stocks are daily data and averaging it to weekly data can only remove some noise. This also does not account for the volatility of the stock market. 
+The dataset was downloaded from Yahoo Finance which tracks the daily stock market.
+I used RStudio software for data transformations, plotting, and some data cleaning.
+Also, I used it for model building and model diagnostics.
+The report is fully written in Rmarkdown.
+Furthermore, Microsoft Excel was used for some quick data cleaning and removal of unneeded variables from the Yahoo Finanace dataset.
+The RStudio libraries used were dplyr, ggplot2, lubridate, MASS, forecast, astsa, and MuMIn.
 
-The dataset was downloaded from Yahoo Finance which tracks the daily stock market. I used RStudio software for data transformations, plotting, and some data cleaning. Also, I used it for model building and model diagnostics. The report is fully written in Rmarkdown. I also used Microsoft Excel for some quick data cleaning and removal of unneeded data variables from the Yahoo Finanace dataset. The RStudio libraries used were dplyr, ggplot2, lubridate, MASS, forecast, astsa, and MuMIn.
-
-# Plots
-
-Plot and analyze the time series.
-Examine the main features of the graph, checking, in particular, whether there is (i) a trend; (ii) a seasonal component, (iii) any apparent sharp changes in behavior.
-Explain in detail.
-
-# Netflix Stock Price Prediction Using Time Series
-
-## Cleaning up data
+<!-- ## Cleaning up data -->
 
 ```{r}
 # Load data
@@ -63,17 +77,25 @@ sapply(NFLX.csv, class)
 
 ```{r}
 # Remove 2020 data
+# I removed the 2020-2022 data because of the pandemic changes.
 NFLX <- NFLX.csv[c(1:104),]
 
 # 2020 Data
 NFLX2020 <- NFLX.csv[-c(1:104),]
 ```
 
-I removed the 2020-2022 data because of the pandemic changes.
 
-## Plotting Raw Data
+<!-- ## Plotting Raw Data -->
+```{r fig.height = 4, fig.width = 5, fig.align='center'}
+plot.ts(NFLX.csv$Adj.Close,
+        main = "Netflix Weekly Adj. Closing Price (2018 - 2020)",
+        ylab = "Adjusted Closing Price")
+```
 
-```{r}
+
+```{r fig.height = 5, fig.width = 10}
+par(mfrow=c(1, 2))
+
 plot.ts(NFLX$Adj.Close,
         main = "Netflix Weekly Adj. Closing Price (2018 - 2019)",
         ylab = "Adjusted Closing Price")
@@ -96,7 +118,10 @@ ts.plot(ts.adj.close,
         ylab= 'Adjusted Closing Price')
 ```
 
-# Train and Test Set Split
+There seems to be an upward trend at the beginning of the year and a downward trend starting at the middle of the year for 2018-2019.
+In 2020, there seems to be a continuous upward trend.
+
+## Train and Test Set Split
 
 ```{r}
 # Partition dataset to two parts for model training and model validation
@@ -107,28 +132,12 @@ NFLX.train <- NFLX[c(1:95),]
 NFLX.test <- NFLX[-c(1:95),]
 ```
 
+I partitioned the dataset into two parts for model training and model validation. The training set is used to train our models (2018-2019- first 95 weeks) and the test set (2019- last 9 weeks and 2020- 52 weeks) is used to test our model forecasts.
+
 ## Netflix Weekly Adj. Closing Price (2018 - 2019) Training Set: 95 Observations
 
-```{r}
-# plot.ts(NFLX.train$Adj.Close)
-# 
-# # Added Trend and mean (constant) to data plot
-# abline(lm(NFLX.train$Adj.Close ~ as.numeric(1:length(NFLX.train$Adj.Close))), col="blue") # Trend
-# abline(h=mean(NFLX.train$Adj.Close), col="green") # Mean
-# 
-# # Check normality with Histogram
-# hist(NFLX.train$Adj.Close, 
-#      col="light blue", 
-#      xlab ="",
-#      main = "Histogram; Netflix Weekly Adjusted Closing Price Data")
-# 
-# # Plot ACF
-# acf(NFLX.train$Adj.Close, 
-#     lag.max=60, 
-#     main="ACF of Netflix Weekly Adjusted Closing Price")
-```
-
-```{r}
+```{r fig.height = 5, fig.width = 10}
+par(mfrow=c(1, 2))
 netflix <- ts(NFLX.train[,2], start = c(2018, 1), frequency = 52)
 netflix.test <- ts(NFLX.train[,2], start = c(2019, 10), frequency = 52)
 
@@ -136,9 +145,7 @@ netflix.test <- ts(NFLX.train[,2], start = c(2019, 10), frequency = 52)
 ts.plot(netflix, 
         main = "Training Data",
         ylab = "Adjusted Closing Price")
-```
 
-```{r}
 # Check normality with Histogram
 hist(netflix, 
      col="light blue", 
@@ -146,7 +153,7 @@ hist(netflix,
      main = "Histogram; Netflix Weekly Adjusted Closing Price Data")
 ```
 
-```{r fig.height = 3, fig.width = 7}
+```{r fig.height = 5, fig.width = 10}
 # Plot ACF and PACF of Original Data
 op = par(mfrow = c(1,2))
 acf(netflix[1:length(netflix)], lag.max=70)
@@ -160,22 +167,15 @@ The ACF remains large and periodic.
 It does not decrease to zero quickly which implies non-stationary data.
 We may need to difference the data to get stationarity.
 To stabilize the variance and try to make it normal, we can transform the data using Box-Cox transformation.
-To remove the seasonality and negative trend we can difference.
+To remove the seasonality and trend we can difference.
 We can check if first lag differencing makes the data more stationary and decreases its variance.
 If we continue differencing and the variance increases than we have overdifferenced and should go back to the previous differenced data.
 
 The data is skewed with variance non constant so we need to try a Box-Cox transformation.
 
-    -   There is a mostly linear trend in data although there is a very sharp change in behavior near the year 2022.
-        There are also some sharp changes nearing the year 2019 and right after the year 2020.
-
-    -   There may be a seasonal component where the series heads towards a major high from the beginning to middle of the year and heads downwards from the middle to end of the year (Year 2018-2019).
-        There are also similar spikes throughout the time series.
-        However, we cannot tell for sure from this data
-
 ## Box-Cox Transformation
 
-```{r}
+```{r fig.height = 3.5, fig.width = 4.5, fig.align='center'}
 t = 1:length(netflix)
 fit = lm(netflix ~ t)
 bcTransform = boxcox(netflix ~ t, plotit = TRUE)
@@ -185,7 +185,9 @@ netflix.bc = (1/lambda) * (netflix^lambda - 1)
 
 # Power 2 Transform
 netflix.squared = netflix^2
+```
 
+```{r fig.height=5.5}
 # Compare transforms
 op= par(mfrow=c(3,2))
 ts.plot(netflix, main = "Original Times Series", ylab = expression(X[t])) 
@@ -204,20 +206,11 @@ hist(netflix.squared,
      main = "Histogram of Netflix Squared Transform")
 ```
 
-The Box-Cox Transformation gives us that $\lambda = 2$.
-This means that the best transformation for this data is the Box-Cox Power 2 Transformation.
 We transformed the data by squaring the data.
 We are going to choose our original data because the transformations did not change the time series plots that much.
 The Box Cox Transformed Histogram may be a bit more normal but it is hard to tell so I chose the original data.
 
-Use any necessary transformations to get a stationary series.
-Give a detailed explanation to justify your choice of a particular procedure.
-If you have used transformation, justify why.
-If you have used differencing, what lag did you use?
-Why?
-Is your series stationary now?
-
-```{r fig.height = 3, fig.width = 7}
+```{r fig.height = 5, fig.width = 10}
 op = par(mfrow = c(1,2))
 acf(netflix[1:length(netflix)], lag.max = 70, main="")
 pacf(netflix[1:length(netflix)], lag.max = 70, main="")
@@ -229,10 +222,10 @@ There are significant correlations with values moving proportionally.
 It could be moving proportionally every 52 lags because we know that this is Weekly Netflix Stock Adjusted Closing Prices for 2018-2019.
 Therefore, we can say that the period of the seasonal component is given by d = 52.
 
-## Difference at lag = 1
+## Differencing
 
-```{r fig.height = 6, fig.width = 7}
-op = par(mfrow = c(2,2))
+```{r fig.height = 7, fig.width = 6, fig.align='center'}
+op = par(mfrow = c(3,2))
 # Original Data
 plot.ts(netflix,
         main = "Original Time Series- Training Data")
@@ -251,10 +244,11 @@ netflix52 <- diff(netflix, 52)
 plot.ts(netflix52, main = "Deseasonalized Time Series", ylab = expression(nabla~X[t]))
 abline(h = 0, lty = 2, col = "blue")
 
-# Difference at lag = 1 to remove trend component
-net <- diff(netflix52, 1)
-plot.ts(net, main = "Deseasonalized/De-trended Time Series", ylab = expression(nabla~X[t]))
-abline(h = 0, lty = 2, col = "blue")
+# # Difference at lag = 1 to remove trend component
+# net <- diff(netflix52, 1)
+# plot.ts(net, main = "Deseasonalized/De-trended Time Series", 
+#         ylab = expression(nabla~X[t]))
+# abline(h = 0, lty = 2, col = "blue")
 ```
 
 ```{r}
@@ -263,14 +257,14 @@ var(netflix)
 var(netflix1)
 var(netflix2)
 var(netflix52)
-var(net)
+# var(net)
 ```
 
 We know that Netflix stock prices have a trend.
 After we difference at lag = 1 to remove the trend, we can see that the data is more stationary compared to the original data plot.
-This is a good choice because differencing at lag = 1 decreased our variance from $\text{Var} = 1911.074$ to $\text{Var} = 343.6827$.
+This is a good choice because differencing at lag = 1 decreased our variance from $\text{Var} = 1911.074$ to $\text{Var} = 343.6827$. Differencing at lag 1 again only increased variance to $\text{Var} = 746.7033$. Differencing at lag 52 also increased variance. Rather than a seasonal component the time series may have a cyclical component.
 
-```{r fig.height = 3, fig.width = 7}
+```{r fig.height = 5, fig.width = 10}
 op = par(mfrow = c(1,2))
 acf(netflix[1:length(netflix)], lag.max = 70, main = "ACF of Original Time Series")
 acf(netflix1[1:length(netflix1)], lag.max = 70, main="ACF of De-trended Time Series")
@@ -281,7 +275,7 @@ It does not decrease to zero quickly which implies non-stationary data.
 After differencing at lag = 1 to remove the trend component it drops to zero quickly now which means the data is stationary.
 There seems to be no significant lags meaning that all the lags = 0 after differencing at lag = 1.
 
-```{r fig.height = 3, fig.width = 7}
+```{r fig.height = 5, fig.width = 10}
 op = par(mfrow = c(1,2))
 hist(netflix, 
      col="light blue", 
@@ -296,16 +290,11 @@ hist(netflix1,
 The histogram of differenced adjusted close price looks more normally distributed in comparison to the histogram of the original adjusted close price data.
 From the histogram we can see that the differenced data looks more symmetric.
 
-We then plot and analyze sample ACF and PACF to preliminary identify our model(s).
-
-Fit your model(s): Estimate the coefficients and perform diagnostic checking.
-Compare at least two models to choose the final model and explain how you decided on your \`\`best" model. Is the model obtained by using AIC(C) the same as one of the models suggested by ACF/PACF? Write the fitted model in algebraic form. Do you conclude from the analysis of residuals that your model is satisfactory?
-
 ## Model Building
 
 ### ACF and PACF of de-trended time series \$\$
 
-```{r fig.height = 3, fig.width = 7}
+```{r fig.height = 5, fig.width = 10}
 op = par(mfrow = c(1,2))
 acf(netflix1[1:length(netflix1)], lag.max = 70, main = "De-Trended Time Series")
 pacf(netflix1[1:length(netflix1)], lag.max = 70, main = "De-Trended Time Series")
@@ -322,7 +311,7 @@ Given this information we have a possible $\text{ARIMA}(p,d,q)$ model of $\text{
 
 ### Model Estimation
 
-```{r}
+```{r results='show'}
 # Candidate models:
 df <- expand.grid(p=0:8, q=0:1) 
 df <- cbind(df, AICc=NA)
@@ -338,7 +327,7 @@ for (i in 1:nrow(df)) {
 
 # Complete AICc Table Sorted from Descending AICc
 df_ordered <- df[order(df$AICc),]
-df_ordered
+df_ordered[1:12,]
 ```
 
 After fitting different ARIMA models using maximum likelihood estimate and comparing the model fits using AICc we can choose 3 models with the smallest AICc.
@@ -350,50 +339,70 @@ Model $\text{ARIMA}(0,1,0)$ is random walk , $\text{AR}(1)$, $\text{ARIMA}(8,1,0
 
 #### [Model A]{.ul}: $\text{ARIMA}(0,1,0)$
 
-```{r}
+```{r results='show'}
 # ARIMA(0,1,0)
 fit <- arima(netflix[1:length(netflix)], order=c(0,1,0), method="ML")
 fit
+```
+
+```{r}
 abs(polyroot(c(1,fit$coef))) > 1
 ```
 
+
 #### [Model B]{.ul}: $\text{AR}(1)$
 
-```{r}
+```{r results='show'}
 # AR(1)
 fit2 <- arima(netflix[1:length(netflix)], order=c(1,0,0), method="ML")
 fit2
+```
+
+```{r}
 abs(polyroot(c(1,fit2$coef))) > 1
 ```
 
+
 #### [Model C]{.ul}: $\text{ARIMA}(8,1,0)$
 
-```{r}
+```{r results='show'}
 # ARIMA(8,1,0)
 fit3 <- arima(netflix[1:length(netflix)], order=c(8,1,0), method="ML")
 fit3
+```
+
+```{r}
 abs(polyroot(c(1, fit3$coef))) > 1
 ```
 
 #### [Model D]{.ul}: $\text{SAR}(1)_8$
 
-```{r}
+```{r results='show'}
 # SAR(1)_8
-fit5 <- arima(netflix[1:length(netflix)], order = c(0, 0, 0), seasonal = list(order=c(1, 0, 0), period = 8), method="ML")
+fit5 <- arima(netflix[1:length(netflix)], order = c(0, 0, 0), 
+              seasonal = list(order=c(1, 0, 0), period = 8), method="ML")
 fit5
 # sarima(netflix[1:length(netflix)], 
 #                p = 1, d = 0, q = 0,
 #                P = 0, D = 0, Q = 0,
 #                S = 8)
+```
+
+```{r}
 abs(polyroot(c(1, fit5$coef))) > 1
 ```
 
 #### [New Model C]{.ul}: $\text{ARIMA}(8,1,0)$ fixed
 
-```{r}
+```{r results='show'}
 # ARIMA(8,1,0) fixed
-fit4 <- arima(netflix[1:length(netflix)], order=c(8,1,0), fixed=c(0,0,0,0,0,0,0,NA), method="ML", transform.pars = FALSE) # change coefficients to 0 if within 95% CI
+fit4 <- arima(netflix[1:length(netflix)], order=c(8,1,0), 
+              fixed=c(0,0,0,0,0,0,0,NA), method="ML", 
+              transform.pars = FALSE) # change coefficients to 0 if within 95% CI
 fit4
+```
+
+```{r}
 abs(polyroot(c(1, fit4$coef))) > 1
 ```
 
@@ -414,9 +423,8 @@ Random walk and the limiting $\text{AR}(1)$ case sways me away from those two mo
 $\text{SAR}(1)_8$ has the highest AIC from the models I chose, thus, we're not going to use that model.
 We're going to compare the $\text{ARIMA}(8,1,0)$ model and the $\text{ARIMA}(8,1,0)$ fixed model.
 
-#### [Check:]{.ul} Roots
-
 ```{r}
+# Check Roots 
 abs(polyroot(c(1, fit3$coef))) > 1
 
 abs(polyroot(c(1, fit4$coef))) > 1
@@ -430,7 +438,7 @@ abs(polyroot(c(1, fit4$coef))) > 1
 
 AIC: 823.81
 
-```{r fig.height = 7, fig.width = 6}
+```{r fig.height = 7, fig.width = 6, results='show', fig.align='center'}
 par(mfrow=c(3,2)) 
 # Test for independence of residuals
 res <- residuals(fit3)
@@ -472,17 +480,22 @@ Formula: $\nabla_1 X_t = -0.0517X_{t-1} - 0.0055X_{t-2} + 0.1362X_{t-3} - 0.0910
 From the diagnostics we test the assumption $Z_t$ is white noise.
 We see that the statement is true for the model $\text{ARIMA}(8,1,0)$.
 The residuals closely resemble white noise and appear to be stationary.
-There is no apparent trend. There are no changes in variance.
-The histogram and qq-plot appear to be normal. For the Portmanteau Tests, they test the null hypothesis that the model is normal and all the tests pass because the p-values are larger than 0.05. We fail to reject the null hypothesis that Model C is normally distributed. 
+There is no apparent trend.
+There are no changes in variance.
+The histogram and qq-plot appear to be normal.
+For the Portmanteau Tests, they test the null hypothesis that the model is normal and all the tests pass because the p-values are larger than 0.05.
+We fail to reject the null hypothesis that Model C is normally distributed.
 
-The ACF and PACF of the residuals also shows that they are within confidence intervals. At all lags it is equal to 0. The residuals are all independent. The ACF of the residuals though has lags that do not equal 0. 
-
+The ACF and PACF of the residuals also shows that they are within confidence intervals.
+At all lags it is equal to 0.
+The residuals are all independent.
+The ACF of the residuals squared though has lags that do not equal 0.
 
 #### [New Model C]{.ul}: $\text{ARIMA}(8,1,0)$ fixed
 
 AIC: 814.6
 
-```{r fig.height = 7, fig.width = 6}
+```{r fig.height = 7, fig.width = 6, results='show', fig.align='center'}
 par(mfrow=c(3,2)) 
 # Test for independence of residuals
 res <- residuals(fit4)
@@ -521,80 +534,107 @@ ar(res,aic=TRUE, order.max=NULL, method=c("yule-walker"))
 
 Formula: $\nabla_1 X_t = - 0.2189X_{t-8} + Z_t$
 
-
 From the diagnostics we test the assumption $Z_t$ is white noise.
-We see that the statement is true for the model $\text{ARIMA}(8,1,0)$ fixed. 
+We see that the statement is true for the model $\text{ARIMA}(8,1,0)$ fixed.
 The residuals closely resemble white noise and appear to be stationary.
-There is no apparent trend. There are no changes in variance. The histogram and qq-plot appear to be normal. For the Portmanteau Tests, they test the null hypothesis that the model is normal and all the tests pass because all the p-values are larger than 0.05. We fail reject the null hypothesis that Model C fixed is normally distributed. This one also has the lowest AIC value.
+There is no apparent trend.
+There are no changes in variance.
+The histogram and qq-plot appear to be normal.
+For the Portmanteau Tests, they test the null hypothesis that the model is normal and all the tests pass because all the p-values are larger than 0.05.
+We fail reject the null hypothesis that Model C fixed is normally distributed.
+This one also has the lowest AIC value.
 
-The ACF and PACF of the residuals also shows that they are within confidence intervals. At all lags it is equal to 0. The residuals are all independent. The ACF of the residuals though has lags that do not equal 0. 
+The ACF and PACF of the residuals also shows that they are within confidence intervals.
+At all lags it is equal to 0.
+The residuals are all independent.
+The ACF of the residuals has lags all equal to 0.
 
-
-```{r}
+## Final Model
+```{r results='show'}
 # Final model:
-fit <- arima(netflix[1:length(netflix)], order=c(8,1,0), fixed=c(0,0,0,0,0,0,0,NA), method="ML", transform.pars = FALSE)
+fit <- arima(netflix[1:length(netflix)], order=c(8,1,0), 
+             fixed=c(0,0,0,0,0,0,0,NA), method="ML", transform.pars = FALSE)
 fit
 ```
-# Data Forecasrting
-Make sure to include confidence intervals.
-Make sure to return to original data.
-Plot the original series and the forecasts.
 
-```{r}
+# Data Forecasrting
+
+```{r fig.height = 4, fig.width = 5, fig.align='center'}
 forecast(fit)
 # Predict 9 future observations and plot
 par(mfrow=c(1, 1))
 mypred <- predict(fit, n.ahead = 9)
 U <- mypred$pred + 2*mypred$se
 L <- mypred$pred - 2*mypred$se
-ts.plot(netflix[1:length(netflix)], xlim=c(1, length(netflix1)+9), ylim = c(min(netflix), max(U)*1.1),main="Forecast for 2019")
+ts.plot(netflix[1:length(netflix)], xlim=c(1, length(netflix1)+9), 
+        ylim = c(min(netflix), max(U)*1.1),main="Forecast for 2019")
 lines(U, col="blue", lty="dashed")
 lines(L, col="blue", lty="dashed")
 points((length(netflix1)+1):(length(netflix1)+9), mypred$pred, col="red")
 ```
-### Netflix 
-```{r}
+
+```{r fig.height = 4, fig.width = 5, fig.align='center'}
 # forecasts and true values
-ts.plot(NFLX.csv[1:length(NFLX.csv)], xlim = c(80,length(netflix)+9), ylim = c(150, max(U)), col="red",
+ts.plot(NFLX.csv[1:length(NFLX.csv)], xlim = c(80,length(netflix)+9), 
+        ylim = c(150, max(U)), col="red",
         main="2019 Forecast Compared to Actual Test Set")
 lines(U, col="blue", lty="dashed")
 lines(L, col="blue", lty="dashed")
 points((length(netflix)+1):(length(netflix)+9), mypred$pred, col="green")
-legend("topleft", legend=c("Actual", "Predicted", "95% CI"), col=2:4, lty=1)
+legend("bottomleft", legend=c("Actual", "Predicted", "95% CI"), col=2:4, lty=1)
 ```
 
-### Netflix 2020 Predicted vs. Actual 2020
-```{r}
+This is the last 9 weeks of 2019 predicted. The values are all within the confidence interval but the predictions are not very exact with the acutal time series.
+
+```{r fig.height = 4, fig.width = 5, fig.align='center'}
 mypred <- predict(fit, n.ahead = 61)
 U <- mypred$pred + 2*mypred$se
 L <- mypred$pred - 2*mypred$se
+ts.plot(netflix[1:length(netflix)], xlim=c(1, length(netflix1)+61), 
+        ylim = c(min(netflix), max(U)*1.1),main="Forecast for 2020")
+lines(U, col="blue", lty="dashed")
+lines(L, col="blue", lty="dashed")
+points((length(netflix1)+1):(length(netflix1)+61), mypred$pred, col="red")
+```
 
+```{r fig.height = 4, fig.width = 5, fig.align='center'}
 # forecasts and true values
-ts.plot(NFLX.csv[1:length(NFLX.csv)], xlim = c(80,length(netflix)+61), ylim = c(150, max(U)), col="red",
-        main="2019 Forecast Compared to Actual Test Set")
+ts.plot(NFLX.csv[1:length(NFLX.csv)], xlim = c(88,length(netflix)+61), 
+        ylim = c(200, max(U)), col="red",
+        main="2020 Forecast Compared to Actual Test Set")
+legend("topleft", legend=c("Actual", "Predicted", "95% CI"), col=2:4, lty=1)
 lines(U, col="blue", lty="dashed")
 lines(L, col="blue", lty="dashed")
 points((length(netflix)+1):(length(netflix)+61), mypred$pred, col="green")
-legend("topleft", legend=c("Actual", "Predicted", "95% CI"), col=2:4, lty=1)
 ```
+
+
+This is the last 9 weeks of 2019 predicted + 52 weeks of 2020 predicted. The values are all within the confidence interval but the predictions are not very exact with the actual time series. The actual time series for 2020 even falls out of the confidence interval. We can see how unpredictable conditions can affect the stock market and change the path of the time series rapidly. We can also see that as more data is predicted, the model has a hard time predicting any growth. The model is mostly good for short term predicting, if that, because stock prices are so unpredictable. 
+
 
 # Conclusion
 
-Reiterate your conclusions referring to the goals of your project.
-Were these goals achieved?
-Record the math formula for the model you chose.
-Acknowledge all individuals who helped you with this project.
-
 My final model for forecasting Netflix Stock Adjusted Closing Stock Price is model $\text{ARIMA}(8,1,0)$ (fixed):
 
-$$\nabla_1 X_t = - 0.2189X_{t-8} + Z_t$$
-My predictions are not too far off from the actual data short term. They all lie within the 95% confidence interval. However, because this is stock data it is important to consider the fact that I averaged this data into weekly data. Daily data predictions would be much noisier and hard to forecast. Due to unknown circumstances, we cannot predict stock prices accurately long term such as with the unexpected stock market crash of 2020 due to COVID-19, "Random walk theory of stocks suggests that changes in stock prices have the same distribution and are independent of each other" (Investopedia). The theory means that we assume past movement or trends of a stock cannot be used for future predictions because stock prices are random and unpredictable. This makes it difficult to predict stock prices long term. This is proven by the sudden crash in the market after the growing instability due to the COVID-19 pandemic. I compared the predicted 2020 Weekly NFLX Adjusted Closing Price based on the best model found for the time series based on 2018-2019 and compared it to the actual 2020 Weekly NFLX Adjusted Closing Stock Price data. Notice, how the confidence interval is very large and the predictions become very inaccurate as more weeks are trying to be predicted. The model cannot prediction the NFLX stock price growth. The stock market is volatile and hard to predict long term and time series models can only be useful short term due to the nature of the market and unforeseen circumstances. 
+$$\nabla_1 X_t = - 0.2189X_{t-8} + Z_t$$ My predictions are not too far off from the actual data short term.
+They all lie within the 95% confidence interval. However, the confidence interval gets quite large and we can see that in 2020 with the sudden change in stock prices, the model predicts poorly as even the actual data starts to leave the 95% confidence interval.
+However, because this is stock data it is important to consider the fact that I averaged this data into weekly data.
+Daily data predictions would be much noisier and hard to forecast.
+Due to unknown circumstances, we cannot predict stock prices accurately long term such as with the unexpected stock market crash of 2020 due to COVID-19, "Random walk theory of stocks suggests that changes in stock prices have the same distribution and are independent of each other" (Investopedia).
+The theory means that we assume past movement or trends of a stock cannot be used for future predictions because stock prices are random and unpredictable.
+This makes it difficult to predict stock prices long term.
+This is proven by the sudden crash in the market after the growing instability due to the COVID-19 pandemic.
+I compared the predicted 2020 Weekly NFLX Adjusted Closing Price based on the best model found for the time series based on 2018-2019 and compared it to the actual 2020 Weekly NFLX Adjusted Closing Stock Price data.
+Notice, how the confidence interval is very large and the predictions become very inaccurate as more weeks are trying to be predicted.
+The model cannot predict the NFLX stock price growth.
+The stock market is volatile and hard to predict long term and time series models on NFLX stock can only be useful short term due to the nature of the market and unforeseen circumstances.
 
-Throughout the writing of this report, I have received a great deal of support and assistance. I sincerely thank Professor Feldman and Youhong Lee whose guidance was invaluable in formulating this time series report.
+Throughout the writing of this report, I have received a great deal of support and assistance.
+I sincerely thank Professor Feldman and Youhong Lee whose guidance was invaluable in formulating this time series report.
 
 # References
 
-Data: <https://finance.yahoo.com/quote/NFLX/?guccounter=1&guce_referrer=aHR0cHM6Ly93d3cuZ29vZ2xlLmNvbS8&guce_referrer_sig=AQAAAAlyOpCHhrKN5RwXTgl_Nljaik2Brm7y4CK3Z7N8EMmqWtnHPj5_fyWQHaSkdjiqeHu_cLwkBCtdzgmYS3Bk3fUNbY2dsqK1iKJrFd11jlPSmwfgcvjM9aV384Y26zRSzad7NYAscpNwBB0p9sgCdT7HfqXO1fvJGfC9Er3irUbo>
+Data: <https://finance.yahoo.com/quote/NFLX/history?p=NFLX>
 
 Lecture Material: Professor Raya Feldman
 
